@@ -1,0 +1,47 @@
+{
+  "a5_dimensions": {
+    "300dpi": {
+      "width": 1748,
+      "height": 2480
+    },
+    "200dpi": {
+      "width": 1166,
+      "height": 1654
+    },
+    "150dpi": {
+      "width": 874,
+      "height": 1240
+    }
+  },
+  "quality_thresholds": {
+    "excellent": {
+      "min_dpi": 300,
+      "min_pixels": 4331840
+    },
+    "good": {
+      "min_dpi": 200,
+      "min_pixels": 1929164
+    },
+    "acceptable": {
+      "min_dpi": 150,
+      "min_pixels": 1083760
+    },
+    "poor": {
+      "min_dpi": 100,
+      "min_pixels": 500000
+    }
+  },
+  "validation_rules": {
+    "allow_poor_if_no_existing": true,
+    "reject_poor_if_existing": true,
+    "min_file_size_kb": 50,
+    "max_file_size_mb": 20,
+    "supported_formats": [
+      "JPEG",
+      "JPG",
+      "PNG",
+      "TIFF",
+      "BMP"
+    ]
+  }
+}

@@ -1,0 +1,240 @@
+// src/services/apiService.js
+const API_BASE_URL = 'http://185.133.250.8:5000';
+
+// Helper function to handle API responses consistently
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    // Try to get error details from response
+    let errorText;
+    try {
+      const errorData = await response.json();
+      errorText = errorData.error || `HTTP Error: ${response.status}`;
+    } catch (e) {
+      try {
+        // If JSON parsing fails, try to get the response text
+        errorText = await response.text();
+        if (!errorText) {
+          errorText = `HTTP Error: ${response.status}`;
+        }
+      } catch (textError) {
+        errorText = `HTTP Error: ${response.status}`;
+      }
+    }
+    throw new Error(errorText);
+  }
+  
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    return { success: true }; // Default response if parsing fails
+  }
+};
+
+// Get auth token from localStorage
+const getAuthToken = () => localStorage.getItem('token');
+
+// Create headers with auth token
+const createHeaders = (contentType = 'application/json') => {
+  const headers = {
+    'Content-Type': contentType,
+  };
+  
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
+// Fix TIFF file paths if needed
+const fixTiffPath = (photoId) => {
+  // If it's a TIFF file, ensure we're using the correct format
+  if (photoId && (photoId.toLowerCase().endsWith('.tif') || photoId.toLowerCase().endsWith('.tiff'))) {
+    // Return the photoId unchanged, but log for debugging
+    console.log('TIFF file detected:', photoId);
+  }
+  return photoId;
+};
+
+// Improved function to handle special filenames (including those with hyphens)
+const handleSpecialFilename = (photoId) => {
+  if (!photoId) return photoId;
+  
+  // For filenames starting with a hyphen, we need special handling
+  if (photoId.startsWith('-')) {
+    console.log('Handling filename with leading hyphen:', photoId);
+    
+    // Make sure we still encode the filename for URL safety
+    const encodedPhotoId = encodeURIComponent(photoId);
+    
+    // Log for debugging
+    console.log('Encoded filename with hyphen:', encodedPhotoId);
+    
+    return encodedPhotoId;
+  }
+  
+  // For filenames with spaces or special characters, make sure they're properly encoded
+  if (photoId.includes(' ') || /[^a-zA-Z0-9._-]/.test(photoId)) {
+    console.log('Handling filename with spaces or special chars:', photoId);
+    const encodedPhotoId = encodeURIComponent(photoId);
+    console.log('Encoded filename:', encodedPhotoId);
+    return encodedPhotoId;
+  }
+  
+  return photoId;
+};
+
+// API service functions
+const apiService = {
+  // Base URL for external access
+  API_BASE_URL,
+  
+  // Photo endpoints
+  async fetchNextPhoto() {
+    console.log('Fetching next photo...');
+    const response = await fetch(`${API_BASE_URL}/api/photos/next`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async validatePhoto(photoId, decision, rejectReason = null, newFilename = null) {
+    console.log(`Validating photo ${photoId} with decision ${decision}`);
+    
+    // Fix TIFF path if needed
+    const fixedPhotoId = fixTiffPath(photoId);
+    
+    // For the validation API, we DO NOT encode the photoId in the payload
+    // The backend will handle the filename as-is
+    const payload = {
+      photoId: fixedPhotoId,
+      decision,
+    };
+    
+    if (rejectReason) {
+      payload.rejectReason = rejectReason;
+    }
+    
+    if (newFilename && newFilename !== photoId) {
+      payload.newFilename = newFilename;
+    }
+    
+    console.log('Validation payload:', JSON.stringify(payload));
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/photos/validate`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('Validation response status:', response.status, response.statusText);
+      
+      // Try to log the response text for debugging
+      try {
+        const responseClone = response.clone();
+        const responseText = await responseClone.text();
+        console.log('Validation response text:', responseText);
+      } catch (e) {
+        console.warn('Could not log response text:', e);
+      }
+      
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Error during validation:', error);
+      throw error;
+    }
+  },
+  
+  async fetchPhotoList() {
+    const response = await fetch(`${API_BASE_URL}/api/photos/list`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async fetchStats() {
+    const response = await fetch(`${API_BASE_URL}/api/photos/stats`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async processBatch(photoIds, decision, rejectReason = null) {
+    // Fix TIFF paths if needed and handle special filenames
+    const fixedPhotoIds = photoIds.map(fixTiffPath);
+    
+    const response = await fetch(`${API_BASE_URL}/api/photos/batch`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({
+        photoIds: fixedPhotoIds,
+        decision,
+        rejectReason: rejectReason || null
+      })
+    });
+    
+    return handleResponse(response);
+  },
+  
+  // Collaboration endpoints
+  async fetchCollaborationStatus() {
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/status`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async lockPhoto(photoId, duration = 300) {
+    const fixedPhotoId = fixTiffPath(photoId);
+    
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/lock`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({ photoId: fixedPhotoId, duration })
+    });
+    return handleResponse(response);
+  },
+  
+  async unlockPhoto(photoId) {
+    const fixedPhotoId = fixTiffPath(photoId);
+    
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/unlock`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({ photoId: fixedPhotoId })
+    });
+    return handleResponse(response);
+  },
+  
+  // Helper for image URLs - fixed to ensure complete URLs with proper encoding
+  getPhotoUrl(photoId, size = null) {
+    if (!photoId) return '';
+    
+    const fixedPhotoId = fixTiffPath(photoId);
+    const safePhotoId = handleSpecialFilename(fixedPhotoId);
+    
+    let url = `${API_BASE_URL}/api/photos/${safePhotoId}`;
+    if (size) {
+      url += `?size=${size}`;
+    }
+    console.log('Generated image URL:', url);
+    return url;
+  },
+  
+  // Get photo details URL
+  getPhotoDetailsUrl(photoId) {
+    if (!photoId) return '';
+    
+    const fixedPhotoId = fixTiffPath(photoId);
+    const safePhotoId = handleSpecialFilename(fixedPhotoId);
+    
+    const url = `${API_BASE_URL}/api/photos/details/${safePhotoId}`;
+    return url;
+  }
+};
+
+
+export default apiService;

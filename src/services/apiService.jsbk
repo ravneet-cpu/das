@@ -1,0 +1,175 @@
+// src/services/apiService.js
+const API_BASE_URL = 'http://185.133.250.8:5000';
+
+// Helper function to handle API responses consistently
+const handleResponse = async (response) => {
+  // Clone the response so we can log it without consuming it
+  const responseClone = response.clone();
+  
+  // Log the raw response for debugging
+  try {
+    const responseText = await responseClone.text();
+    console.log('API Response Text:', responseText);
+  } catch (e) {
+    console.log('Could not read response text for logging:', e);
+  }
+  
+  if (!response.ok) {
+    // Try to get error details from response
+    let errorText;
+    try {
+      const errorData = await response.json();
+      errorText = errorData.error || `HTTP Error: ${response.status}`;
+    } catch (e) {
+      errorText = `HTTP Error: ${response.status}`;
+    }
+    throw new Error(errorText);
+  }
+  
+  try {
+    return await response.json();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    return { success: true }; // Default response if parsing fails
+  }
+};
+
+// Get auth token from localStorage
+const getAuthToken = () => localStorage.getItem('token');
+
+// Create headers with auth token
+const createHeaders = (contentType = 'application/json') => {
+  const headers = {
+    'Content-Type': contentType,
+  };
+  
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
+// Safely encode a filename
+const safeEncodePhotoId = (photoId) => {
+  // First, try to use the raw ID
+  return photoId;
+};
+
+// API service functions
+const apiService = {
+  // Base URL for external access
+  API_BASE_URL,
+  
+  // Photo endpoints
+  async fetchNextPhoto() {
+    console.log('Fetching next photo...');
+    const response = await fetch(`${API_BASE_URL}/api/photos/next`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async validatePhoto(photoId, decision, rejectReason = null, newFilename = null) {
+    console.log(`Validating photo ${photoId} with decision ${decision}`);
+    
+    // Try different encodings of the photoId
+    const rawPhotoId = photoId; // No encoding at all
+    
+    console.log('Testing photo validation with raw ID:', rawPhotoId);
+    
+    const payload = {
+      photoId: rawPhotoId,
+      decision,
+    };
+    
+    if (rejectReason) {
+      payload.rejectReason = rejectReason;
+    }
+    
+    if (newFilename && newFilename !== photoId) {
+      payload.newFilename = newFilename;
+    }
+    
+    console.log('Validation payload:', JSON.stringify(payload));
+    
+    const response = await fetch(`${API_BASE_URL}/api/photos/validate`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify(payload)
+    });
+    
+    console.log('Validation response status:', response.status, response.statusText);
+    
+    return handleResponse(response);
+  },
+  
+  async fetchPhotoList() {
+    const response = await fetch(`${API_BASE_URL}/api/photos/list`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async fetchStats() {
+    const response = await fetch(`${API_BASE_URL}/api/photos/stats`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async processBatch(photoIds, decision, rejectReason = null) {
+    // Log the batch processing attempt
+    console.log('Processing batch:', { photoIds, decision, rejectReason });
+    
+    const response = await fetch(`${API_BASE_URL}/api/photos/batch`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({
+        photoIds,
+        decision,
+        rejectReason: rejectReason || null
+      })
+    });
+    
+    return handleResponse(response);
+  },
+  
+  // Collaboration endpoints
+  async fetchCollaborationStatus() {
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/status`, {
+      headers: createHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  async lockPhoto(photoId, duration = 300) {
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/lock`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({ photoId, duration })
+    });
+    return handleResponse(response);
+  },
+  
+  async unlockPhoto(photoId) {
+    const response = await fetch(`${API_BASE_URL}/api/collaboration/unlock`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({ photoId })
+    });
+    return handleResponse(response);
+  },
+  
+  // Helper for image URLs
+  getPhotoUrl(photoId, size = null) {
+    let url = `${API_BASE_URL}/api/photos/${encodeURIComponent(photoId)}`;
+    if (size) {
+      url += `?size=${size}`;
+    }
+    return url;
+  }
+};
+
+export default apiService;

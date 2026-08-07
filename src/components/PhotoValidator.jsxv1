@@ -1,0 +1,141 @@
+import React, { useState, useEffect } from 'react';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
+
+const PhotoValidator = () => {
+  const [currentPhoto, setCurrentPhoto] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    validated: 0,
+    rejected: 0,
+    remaining: 0
+  });
+
+  useEffect(() => {
+    fetchNextPhoto();
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/photos/stats');
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      setError("Erreur lors du chargement des statistiques");
+      console.error(err);
+    }
+  };
+
+  const fetchNextPhoto = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/photos/next');
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement de la photo');
+      }
+      const data = await response.json();
+      setCurrentPhoto(data);
+      setError(null);
+    } catch (err) {
+      setError("Erreur lors du chargement de la photo suivante");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidation = async (decision) => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/photos/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photoId: currentPhoto.id,
+          decision: decision ? 'valider' : 'refuser'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la validation');
+      }
+
+      await fetchStats();
+      await fetchNextPhoto();
+    } catch (err) {
+      setError("Erreur lors de la validation de la photo");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6 text-center">Validation des Photos</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+          {loading ? (
+            <div className="text-gray-500">Chargement...</div>
+          ) : currentPhoto ? (
+            <img 
+              src={`http://localhost:5000/api/photos/${currentPhoto.id}`}
+              alt="Photo à valider"
+              className="max-h-full max-w-full object-contain"
+            />
+          ) : (
+            <div className="text-gray-500">Aucune photo à valider</div>
+          )}
+        </div>
+
+        <div className="flex justify-center space-x-4">
+          <button
+            onClick={() => handleValidation(false)}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg flex items-center"
+            disabled={loading || !currentPhoto}
+          >
+            <ThumbsDown className="mr-2 h-5 w-5" />
+            Refuser
+          </button>
+
+          <button
+            onClick={() => handleValidation(true)}
+            className="bg-green-500 text-white px-6 py-2 rounded-lg flex items-center"
+            disabled={loading || !currentPhoto}
+          >
+            <ThumbsUp className="mr-2 h-5 w-5" />
+            Valider
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="bg-green-100 p-4 rounded">
+            <div className="font-semibold">Validées</div>
+            <div>{stats.validated}</div>
+          </div>
+          <div className="bg-red-100 p-4 rounded">
+            <div className="font-semibold">Refusées</div>
+            <div>{stats.rejected}</div>
+          </div>
+          <div className="bg-gray-100 p-4 rounded">
+            <div className="font-semibold">Restantes</div>
+            <div>{stats.remaining}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PhotoValidator;

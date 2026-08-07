@@ -1,0 +1,288 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { ThumbsUp, ThumbsDown, Loader, Upload } from 'lucide-react';
+
+const API_BASE_URL = 'http://185.133.250.8:5000';
+
+const PhotoValidator = () => {
+  const [currentPhoto, setCurrentPhoto] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [fileDetails, setFileDetails] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    validated: 0,
+    rejected: 0,
+    remaining: 0
+  });
+
+  const encodeFileName = (filename) => {
+    return encodeURIComponent(filename).replace(/%2F/g, '/');
+  };
+
+  const getImageUrl = (photoId) => {
+    if (!photoId) return '';
+    return `${API_BASE_URL}/api/photos/${encodeFileName(photoId)}`;
+  };
+
+  const fetchFileDetails = async (filename) => {
+    try {
+      if (!filename) return;
+      const encodedFilename = encodeFileName(filename);
+      const response = await fetch(`${API_BASE_URL}/api/photos/details/${encodedFilename}`);
+      if (response.ok) {
+        const details = await response.json();
+        setFileDetails(details);
+      } else {
+        console.error('Erreur détails:', await response.text());
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des détails:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/photos/stats`);
+      if (!response.ok) throw new Error('Erreur de chargement des statistiques');
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Erreur stats:', err);
+      setError("Erreur lors du chargement des statistiques");
+    }
+  };
+
+  const fetchNextPhoto = async () => {
+    try {
+      setLoading(true);
+      setImageLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/photos/next`);
+      if (!response.ok) throw new Error('Erreur de chargement de la photo');
+      const data = await response.json();
+      console.log('Next photo:', data);
+      setCurrentPhoto(data);
+      if (data && data.id) {
+        await fetchFileDetails(data.id);
+      }
+      setError(null);
+    } catch (err) {
+      console.error('Erreur next photo:', err);
+      setError("Erreur lors du chargement de la photo suivante");
+      setCurrentPhoto(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadStatus('Envoi en cours...');
+      const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Erreur lors de l\'upload');
+
+      setUploadStatus('Fichier envoyé avec succès');
+      await fetchStats();
+      if (!currentPhoto) await fetchNextPhoto();
+    } catch (error) {
+      setUploadStatus('Erreur lors de l\'envoi du fichier');
+      console.error('Erreur upload:', error);
+    }
+  };
+
+  const handleValidation = async (decision) => {
+    if (!currentPhoto) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/photos/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photoId: currentPhoto.id,
+          decision: decision ? 'valider' : 'refuser'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Erreur de validation');
+      await Promise.all([fetchStats(), fetchNextPhoto()]);
+    } catch (err) {
+      console.error('Erreur validation:', err);
+      setError("Erreur lors de la validation de la photo");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = useCallback((event) => {
+    if (loading || !currentPhoto) return;
+    
+    if (event.key === 'ArrowLeft' || event.key === 'q' || event.key === 'Q') {
+      handleValidation(false);
+    } else if (event.key === 'ArrowRight' || event.key === 'd' || event.key === 'D') {
+      handleValidation(true);
+    }
+  }, [currentPhoto, loading]);
+
+  useEffect(() => {
+    fetchNextPhoto();
+    fetchStats();
+    const intervalId = setInterval(fetchStats, 5000);
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [handleKeyPress]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8 px-4">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+          <h1 className="text-2xl font-bold text-center mb-4">
+            Validation des Photos ({stats.remaining} restantes)
+          </h1>
+          <div className="flex justify-between text-sm mb-2">
+            <span>Progression</span>
+            <span>{((stats.validated + stats.rejected) / stats.total * 100).toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-100 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${((stats.validated + stats.rejected) / stats.total * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {currentPhoto && fileDetails && (
+          <div className="px-6 pt-4 text-sm text-gray-600">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h2 className="font-semibold mb-2">Informations sur le fichier</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p><span className="font-medium">Nom :</span> {currentPhoto.id}</p>
+                  <p><span className="font-medium">Taille :</span> {fileDetails.size}</p>
+                </div>
+                <div>
+                  <p><span className="font-medium">Type :</span> {fileDetails.type}</p>
+                  <p><span className="font-medium">Date :</span> {fileDetails.modified}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-6">
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="relative bg-gray-50 rounded-lg overflow-hidden" style={{ height: '60vh' }}>
+            {loading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader className="h-8 w-8 text-blue-500 animate-spin" />
+              </div>
+            ) : currentPhoto ? (
+              <>
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader className="h-8 w-8 text-blue-500 animate-spin" />
+                  </div>
+                )}
+                <img 
+                  src={getImageUrl(currentPhoto.id)}
+                  alt="Photo à valider"
+                  className="w-full h-full object-contain"
+                  onLoad={() => setImageLoading(false)}
+                  onError={(e) => {
+                    console.error('Erreur chargement image:', e);
+                    setImageLoading(false);
+                    setError("Erreur lors du chargement de l'image");
+                  }}
+                  style={{ display: imageLoading ? 'none' : 'block' }}
+                />
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                Aucune photo à valider
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-center space-x-4 mt-6">
+            <button
+              onClick={() => handleValidation(false)}
+              disabled={loading || !currentPhoto}
+              className="px-6 py-3 bg-red-500 text-white rounded-lg flex items-center disabled:opacity-50 hover:bg-red-600 transition-colors"
+            >
+              <ThumbsDown className="h-5 w-5 mr-2" />
+              Refuser (Q)
+            </button>
+            <button
+              onClick={() => handleValidation(true)}
+              disabled={loading || !currentPhoto}
+              className="px-6 py-3 bg-green-500 text-white rounded-lg flex items-center disabled:opacity-50 hover:bg-green-600 transition-colors"
+            >
+              <ThumbsUp className="h-5 w-5 mr-2" />
+              Valider (D)
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-center">
+              <label className="flex flex-col items-center px-4 py-6 bg-white rounded-lg shadow-lg tracking-wide border border-blue cursor-pointer hover:bg-blue-50 transition-colors">
+                <Upload className="w-8 h-8 text-blue-500" />
+                <span className="mt-2 text-base">Sélectionner des fichiers</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  multiple
+                />
+              </label>
+            </div>
+            {uploadStatus && (
+              <div className="mt-2 text-center text-sm text-gray-600">
+                {uploadStatus}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="p-4 bg-green-50 rounded-lg text-center">
+              <div className="text-sm text-green-600 font-medium">Validées</div>
+              <div className="text-2xl font-bold text-green-700">{stats.validated}</div>
+            </div>
+            <div className="p-4 bg-red-50 rounded-lg text-center">
+              <div className="text-sm text-red-600 font-medium">Refusées</div>
+              <div className="text-2xl font-bold text-red-700">{stats.rejected}</div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg text-center">
+              <div className="text-sm text-gray-600 font-medium">Restantes</div>
+              <div className="text-2xl font-bold text-gray-700">{stats.remaining}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PhotoValidator;

@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+Pro:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --text-muted: #6b7280;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --border-color: #d1d5db;
+  --accent-color: #2563eb;
+}
+
+body {
+  @apply bg-white text-black;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* Titres avec police serif élégante */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+/* Classes utilitaires pour le texte */
+.text-primary {
+  color: var(--text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* Amélioration de la lisibilité */
+.font-elegant {
+  font-family: 'Crimson Text', Georgia, serif;
+}
+
+.font-body {
+  font-family: 'Source Sans Pro', sans-serif;
+}
+
+/* Boutons avec meilleur contraste */
+.btn-primary {
+  @apply bg-black text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-800 transition-colors;
+  font-family: 'Source Sans Pro', sans-serif;
+}
+
+.btn-secondary {
+  @apply bg-white text-black border-2 border-gray-400 font-semibold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors;
+  font-family: 'Source Sans Pro', sans-serif;
+}
+
+/* Inputs avec meilleur contraste */
+.input-elegant {
+  @apply w-full px-4 py-3 border-2 border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black bg-white;
+  font-family: 'Source Sans Pro', sans-serif;
+}
+
+/* Cartes avec design épuré */
+.card-elegant {
+  @apply bg-white border-2 border-gray-300 rounded-lg shadow-lg;
+}
+
+/* Navigation élégante */
+.nav-elegant {
+  @apply bg-white border-b-2 border-gray-300;
+}
+
+/* Override pour s'assurer que tout le texte est lisible */
+* {
+  color: inherit;
+}
+
+/* Correction spécifique pour les éléments qui pourraient être illisibles */
+p, span, div, label, input, textarea {
+  color: var(--text-primary);
+}
+
+/* Laisser les boutons utiliser leurs propres couleurs */
+button {
+  color: inherit;
+}
+
+.text-gray-500, .text-gray-600, .text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* Scrollbar styling moderne */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

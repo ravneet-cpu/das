@@ -1,0 +1,325 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { ThumbsUp, ThumbsDown, Loader, Upload } from 'lucide-react';
+
+const API_BASE_URL = 'http://185.133.250.8:5000';
+
+const ErrorAlert = ({ message }) => (
+  <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
+    {message}
+  </div>
+);
+
+const PhotoValidator = () => {
+  const [currentPhoto, setCurrentPhoto] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [fileDetails, setFileDetails] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    validated: 0,
+    rejected: 0,
+    remaining: 0
+  });
+
+  const fetchFileDetails = async (filename) => {
+    try {
+      if (!filename) return;
+      console.log('Fetching details for:', filename);
+      const response = await fetch(`${API_BASE_URL}/api/photos/details/${filename}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const details = await response.json();
+      console.log('File details:', details);
+      setFileDetails(details);
+    } catch (error) {
+      console.error('Error details:', error);
+      setError(`Error details: ${error.message}`);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      console.log('Fetching stats...');
+      const response = await fetch(`${API_BASE_URL}/api/photos/stats`);
+      console.log('Stats response:', response);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Stats data:', data);
+      setStats(data);
+    } catch (err) {
+      console.error('Stats error:', err);
+      setError(`Error loading statistics: ${err.message}`);
+    }
+  };
+
+  const fetchNextPhoto = async () => {
+    try {
+      setLoading(true);
+      setImageLoading(true);
+      console.log('Fetching next photo...');
+      
+      const response = await fetch(`${API_BASE_URL}/api/photos/next`);
+      console.log('Next photo response:', response);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Next photo data:', data);
+      
+      if (!data.id) {
+        setCurrentPhoto(null);
+        setError("No photo available");
+        return;
+      }
+      
+      setCurrentPhoto(data);
+      await fetchFileDetails(data.id);
+      setError(null);
+    } catch (error) {
+      console.error('Next photo error:', error);
+      setError(`Error: ${error.message}`);
+      setCurrentPhoto(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    setUploadStatus('Upload in progress...');
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error: ${response.status}`);
+        }
+
+        successCount++;
+      } catch (error) {
+        console.error('Upload error:', error);
+        errorCount++;
+      }
+    }
+
+    setUploadStatus(`Upload complete: ${successCount} successful, ${errorCount} failed`);
+    await fetchStats();
+    if (!currentPhoto) await fetchNextPhoto();
+  };
+
+  const handleValidation = async (decision) => {
+    if (!currentPhoto) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/photos/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          photoId: currentPhoto.id,
+          decision: decision ? 'valider' : 'refuser'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      await Promise.all([fetchStats(), fetchNextPhoto()]);
+    } catch (err) {
+      console.error('Validation error:', err);
+      setError(`Validation error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = useCallback((event) => {
+    if (loading || !currentPhoto) return;
+    
+    if (event.key === 'ArrowLeft' || event.key === 'q' || event.key === 'Q') {
+      handleValidation(false);
+    } else if (event.key === 'ArrowRight' || event.key === 'd' || event.key === 'D') {
+      handleValidation(true);
+    }
+  }, [currentPhoto, loading]);
+
+  // Initial data fetch
+  useEffect(() => {
+    console.log('Initial fetch...');
+    fetchNextPhoto();
+    fetchStats();
+  }, []);
+
+  // Periodic stats update
+  useEffect(() => {
+    console.log('Setting up periodic refresh...');
+    const intervalId = setInterval(fetchStats, 5000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    console.log('Setting up keyboard events...');
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [handleKeyPress]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8 px-4">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+          <h1 className="text-2xl font-bold text-center mb-4">
+            Photo Validation ({stats.remaining} remaining)
+          </h1>
+          <div className="flex justify-between text-sm mb-2">
+            <span>Progress</span>
+            <span>{((stats.validated + stats.rejected) / Math.max(stats.total, 1) * 100).toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-100 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${((stats.validated + stats.rejected) / Math.max(stats.total, 1) * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {currentPhoto && fileDetails && (
+          <div className="px-6 pt-4 text-sm text-gray-600">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h2 className="font-semibold mb-2">File Information</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p><span className="font-medium">Name:</span> {currentPhoto.id}</p>
+                  <p><span className="font-medium">Size:</span> {fileDetails.size}</p>
+                </div>
+                <div>
+                  <p><span className="font-medium">Type:</span> {fileDetails.type}</p>
+                  <p><span className="font-medium">Date:</span> {fileDetails.modified}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-6">
+          {error && <ErrorAlert message={error} />}
+
+          <div className="relative bg-gray-50 rounded-lg overflow-hidden" style={{ height: '60vh' }}>
+            {loading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader className="h-8 w-8 text-blue-500 animate-spin" />
+              </div>
+            ) : currentPhoto ? (
+              <>
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader className="h-8 w-8 text-blue-500 animate-spin" />
+                  </div>
+                )}
+                <img 
+                  src={`${API_BASE_URL}/api/photos/${currentPhoto.id}`}
+                  alt="Photo à valider"
+                  className="w-full h-full object-contain"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageLoading(false);
+                    setError("Image failed to load. Unsupported format or corrupted file.");
+                  }}
+                  style={{ display: imageLoading ? 'none' : 'block' }}
+                />
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                No photo to validate
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-center space-x-4 mt-6">
+            <button
+              onClick={() => handleValidation(false)}
+              disabled={loading || !currentPhoto}
+              className="px-6 py-3 bg-red-500 text-white rounded-lg flex items-center disabled:opacity-50 hover:bg-red-600 transition-colors"
+            >
+              <ThumbsDown className="h-5 w-5 mr-2" />
+              Reject (Q)
+            </button>
+            <button
+              onClick={() => handleValidation(true)}
+              disabled={loading || !currentPhoto}
+              className="px-6 py-3 bg-green-500 text-white rounded-lg flex items-center disabled:opacity-50 hover:bg-green-600 transition-colors"
+            >
+              <ThumbsUp className="h-5 w-5 mr-2" />
+              Validate (D)
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-center">
+              <label className="flex flex-col items-center px-4 py-6 bg-white rounded-lg shadow-lg tracking-wide border border-blue cursor-pointer hover:bg-blue-50 transition-colors">
+                <Upload className="w-8 h-8 text-blue-500" />
+                <span className="mt-2 text-base">Select files</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  multiple
+                />
+              </label>
+            </div>
+            {uploadStatus && (
+              <div className="mt-2 text-center text-sm text-gray-600">
+                {uploadStatus}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="p-4 bg-green-50 rounded-lg text-center">
+              <div className="text-sm text-green-600 font-medium">Validated</div>
+              <div className="text-2xl font-bold text-green-700">{stats.validated}</div>
+            </div>
+            <div className="p-4 bg-red-50 rounded-lg text-center">
+              <div className="text-sm text-red-600 font-medium">Rejected</div>
+              <div className="text-2xl font-bold text-red-700">{stats.rejected}</div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg text-center">
+              <div className="text-sm text-gray-600 font-medium">Remaining</div>
+              <div className="text-2xl font-bold text-gray-700">{stats.remaining}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PhotoValidator;

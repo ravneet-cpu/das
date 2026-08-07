@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/projet/photo-validator/frontend/server.py", line 8, in <module>
+    from flask_limiter import Limiter
+ModuleNotFoundError: No module named 'flask_limiter'

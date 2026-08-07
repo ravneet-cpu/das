@@ -1,0 +1,167 @@
+# =============================
+# image_processor.py (FINAL FIXED)
+# =============================
+
+import os
+import io
+from PIL import Image, ImageOps
+import numpy as np
+
+BACKGROUND_PATH = "/app/template/background.png"
+PERSON_PATH = "/app/template/person.png"
+
+FM_DIR = "/app/photos/FM"
+A5_DIR = "/app/photos/A5"
+THUMB_DIR = "/app/photos/Thumb"
+PERS_DIR = "/app/photos/Perspective"
+WEB300_DIR = "/app/photos/300"
+
+for d in [FM_DIR, A5_DIR, THUMB_DIR, PERS_DIR, WEB300_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+
+# ------------------------------------------------
+# TIFF → JPG
+# ------------------------------------------------
+def convert_tiff_to_jpg(input_path):
+    base, _ = os.path.splitext(input_path)
+    output_path = base + "_300dpi.jpg"
+
+    with Image.open(input_path) as img:
+        img = img.convert("RGB")
+        img.save(output_path, "JPEG", dpi=(300, 300), quality=95)
+
+    return output_path
+
+
+# ------------------------------------------------
+# A5 image
+# ------------------------------------------------
+def create_a5(input_path, output_path):
+    A5_W, A5_H = 1748, 2480
+    img = Image.open(input_path).convert("RGB")
+    a5 = ImageOps.fit(img, (A5_W, A5_H), Image.LANCZOS)
+    a5.save(output_path, "JPEG", quality=90, dpi=(300, 300))
+    return output_path
+
+
+# ------------------------------------------------
+# Thumbnail
+# ------------------------------------------------
+def create_thumbnail(input_path, output_path):
+    img = Image.open(input_path).convert("RGB")
+    img.thumbnail((250, 250), Image.LANCZOS)
+
+    quality = 60
+    for _ in range(10):
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=quality)
+        if len(buf.getvalue()) / 1024 <= 10:
+            with open(output_path, "wb") as f:
+                f.write(buf.getvalue())
+            return output_path
+        quality -= 5
+
+    return output_path
+
+
+# ------------------------------------------------
+# Remove white bg
+# ------------------------------------------------
+def remove_white(img):
+    img = img.convert("RGBA")
+    arr = np.array(img)
+    r, g, b, a = np.rollaxis(arr, axis=-1)
+    mask = (r > 240) & (g > 240) & (b > 240)
+    arr[mask, 3] = 0
+    return Image.fromarray(arr, "RGBA")
+
+
+# ------------------------------------------------
+# ✅ FIXED PERSPECTIVE
+# ------------------------------------------------
+# ------------------------------------------------
+
+# ------------------------------------------------
+# Web 300
+# ------------------------------------------------
+def create_web300(input_path, output_path):
+    img = Image.open(input_path).convert("RGB")
+    img = ImageOps.fit(img, (2480, 3508), Image.LANCZOS)
+    img.save(output_path, "JPEG", dpi=(300, 300), quality=90)
+    return output_path
+
+
+# ------------------------------------------------
+# MAIN PROCESSOR
+# ------------------------------------------------
+def process_uploaded_image(path,artwork_id,classification,should_generate_perspective=False,artwork_width_cm=None,artwork_height_cm=None):
+
+    base = os.path.basename(path).split(".")[0]
+    orig_ext = os.path.splitext(path)[1].lower()
+
+    # STEP 1 — Convert TIFF to JPG properly
+    if orig_ext in (".tif", ".tiff"):
+        jpg_path = convert_tiff_to_jpg(path)
+    else:
+        jpg_path = path
+
+    # STEP 2 — Save ORIGINAL (FM version)
+    if orig_ext in (".tif", ".tiff"):
+        fm_filename = f"{base}_300dpi.jpg"
+    else:
+        fm_filename = f"{base}.jpg"
+
+    fm_out = os.path.join(FM_DIR, fm_filename)
+
+    Image.open(jpg_path).convert("RGB").save(
+        fm_out,
+        "JPEG",
+        dpi=(300, 300),
+        quality=95
+    )
+
+    # STEP 3 — A5 image
+    a5_out = os.path.join(A5_DIR, f"{base}_A5.jpg")
+    create_a5(jpg_path, a5_out)
+
+    # STEP 4 — Thumbnail
+    thumb_out = os.path.join(THUMB_DIR, f"{base}_thumb.jpg")
+    create_thumbnail(jpg_path, thumb_out)
+
+    # web300_out = os.path.join("/app/photos/300", f"{base}_WEB300.jpg")
+    # create_web300(jpg_path, web300_out)
+    web300_out = None
+    if classification == "MAIN":
+        web300_out = os.path.join("/app/photos/300", f"{base}_WEB300.jpg")
+        create_web300(jpg_path, web300_out)
+    # STEP 5 — Perspective (skip sculpture)
+    pers_out = None
+    # if classification != "Sculpture":
+    #     pers_out = os.path.join(PERS_DIR, f"{base}_PERS.jpg")
+    #     generate_perspective(jpg_path, pers_out)
+    
+    # if should_generate_perspective:
+    #     # uses SAME background.png (existing workflow)
+    #     pers_out = os.path.join(PERS_DIR, f"{base}_PERS.jpg")
+    #     generate_perspective(jpg_path, pers_out)
+
+    if should_generate_perspective and artwork_width_cm and artwork_height_cm:
+        pers_out = os.path.join(PERS_DIR, f"{base}_PERS.jpg")
+        pers_out = generate_perspective(
+            jpg_path,
+            pers_out,
+            artwork_width_cm,
+            artwork_height_cm
+        )
+    else:
+        pers_out = None
+
+    return {
+        "original": fm_out,
+        "a5": a5_out,
+        "thumb": thumb_out,
+        "perspective": pers_out,
+        "web300": web300_out
+    }
+

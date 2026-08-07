@@ -1,0 +1,14 @@
+content of the robots.txt : 
+User-agent: *
+Disallow: /admin/
+Disallow: /private/
+Disallow: /backup/
+Disallow: /config/
+Disallow: /db/
+Disallow: /secret/
+Disallow: /wp-admin/
+Disallow: /.env
+Disallow: /api/internal/
+Disallow: /login-admin/sallow: /.git/
+Disallow: /admin-panel/
+Disallow: /phpmyadmin/

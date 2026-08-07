@@ -1,0 +1,302 @@
+// src/components/PhotoDetail.jsx
+import React, { useState, useEffect } from 'react';
+
+export function PhotoDetail({ 
+  photo, 
+  onBack, 
+  onValidate, 
+  onRename,
+  onLock,
+  onUnlock,
+  lockedPhotos = []
+}) {
+  const [newFilename, setNewFilename] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Vérifier si la photo est verrouillée
+  const isLocked = photo.locked || lockedPhotos.some(lock => lock.photo_id === photo.id);
+  const lockedByMe = isLocked && (photo.locked_by === 'currentUser' || lockedPhotos.find(lock => lock.photo_id === photo.id)?.username === 'currentUser');
+
+  // Initialiser le nouveau nom de fichier avec le nom actuel
+  useEffect(() => {
+    if (photo) {
+      setNewFilename(photo.originalName || photo.id);
+      
+      // Récupérer les commentaires
+      fetchComments();
+    }
+  }, [photo]);
+
+  const fetchComments = async () => {
+    try {
+      const response = await fetch(`/api/collaboration/comments/${encodeURIComponent(photo.id)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commentaires:', error);
+    }
+  };
+
+  const addComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      const response = await fetch('/api/collaboration/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId: photo.id, comment: newComment })
+      });
+      
+      if (response.ok) {
+        // Rafraîchir les commentaires
+        fetchComments();
+        setNewComment('');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du commentaire:', error);
+    }
+  };
+
+  const handleValidate = () => {
+    onValidate(photo.id, 'valider', null, newFilename);
+  };
+
+  const handleReject = () => {
+    let reason = rejectReason;
+    
+    // Si "custom" est sélectionné, utiliser la raison personnalisée
+    if (rejectReason === 'custom' && customReason) {
+      reason = customReason;
+    }
+    
+    onValidate(photo.id, 'refuser', reason, newFilename);
+  };
+
+  const handleRename = () => {
+    if (newFilename && newFilename !== photo.originalName) {
+      onRename(photo.id, newFilename);
+      setIsEditing(false);
+    }
+  };
+
+  const toggleLock = () => {
+    if (isLocked && lockedByMe) {
+      onUnlock(photo.id);
+    } else if (!isLocked) {
+      onLock(photo.id);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="relative">
+        {/* Barre d'en-tête avec bouton retour et nom de fichier */}
+        <div className="bg-gray-100 p-4 flex items-center justify-between border-b">
+          <button 
+            onClick={onBack} 
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Retour
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            {isEditing ? (
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={newFilename}
+                  onChange={(e) => setNewFilename(e.target.value)}
+                  className="border rounded px-2 py-1 text-sm w-64"
+                  disabled={isLocked && !lockedByMe}
+                />
+                <button
+                  onClick={handleRename}
+                  className="ml-2 bg-blue-600 text-white px-2 py-1 rounded text-sm"
+                  disabled={isLocked && !lockedByMe}
+                >
+                  Enregistrer
+                </button>
+                <button
+                  onClick={() => {
+                    setNewFilename(photo.originalName || photo.id);
+                    setIsEditing(false);
+                  }}
+                  className="ml-1 bg-gray-300 text-gray-700 px-2 py-1 rounded text-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <h2 className="text-lg font-medium">{photo.originalName || photo.id}</h2>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="ml-2 text-gray-500 hover:text-blue-600"
+                  disabled={isLocked && !lockedByMe}
+                  title="Renommer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            
+            {/* Bouton de verrouillage/déverrouillage */}
+            <button
+              onClick={toggleLock}
+              className={`p-1 rounded-full ${isLocked && !lockedByMe ? 'cursor-not-allowed opacity-50' : ''}`}
+              title={isLocked ? (lockedByMe ? 'Déverrouiller' : `Verrouillé par ${photo.locked_by}`) : 'Verrouiller'}
+              disabled={isLocked && !lockedByMe}
+            >
+              {isLocked ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400 hover:text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* Image */}
+        <div className="flex justify-center bg-gray-800 p-4">
+          <img 
+            src={`/api/photos/${encodeURIComponent(photo.id)}`} 
+            alt={photo.originalName || photo.id} 
+            className="max-h-[70vh] max-w-full object-contain"
+          />
+        </div>
+        
+        {/* Indication de verrouillage */}
+        {isLocked && !lockedByMe && (
+          <div className="bg-yellow-100 text-yellow-800 px-4 py-2 text-center">
+            Cette photo est actuellement verrouillée par {photo.locked_by || 'un autre utilisateur'}
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+          {/* Informations sur la photo */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-3">Informations</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Dimensions:</span>
+                <span>{photo.width && photo.height ? `${photo.width} x ${photo.height}px` : 'Non disponible'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Taille:</span>
+                <span>{photo.size || 'Non disponible'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Format:</span>
+                <span>{photo.paperFormat || 'Non détecté'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Modifié le:</span>
+                <span>{photo.modified || 'Non disponible'}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Actions de validation/rejet */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-3">Actions</h3>
+            <div className="space-y-3">
+              <button
+                onClick={handleValidate}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLocked && !lockedByMe}
+              >
+                Valider
+              </button>
+              
+              <select
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 bg-white disabled:bg-gray-100 disabled:opacity-50"
+                disabled={isLocked && !lockedByMe}
+              >
+                <option value="">-- Motif de rejet --</option>
+                <option value="trop-petite">Trop petite</option>
+                <option value="mal-prise">Mal prise</option>
+                <option value="sans-id">Sans identifiant</option>
+                <option value="custom">Autre raison...</option>
+              </select>
+              
+              {rejectReason === 'custom' && (
+                <input
+                  type="text"
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Précisez la raison du rejet"
+                  className="w-full border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 disabled:opacity-50"
+                  disabled={isLocked && !lockedByMe}
+                />
+              )}
+              
+              <button
+                onClick={handleReject}
+                disabled={!rejectReason || (isLocked && !lockedByMe)}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Refuser
+              </button>
+            </div>
+          </div>
+          
+          {/* Section commentaires */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-3">Commentaires</h3>
+            
+            <div className="h-48 overflow-y-auto mb-3 space-y-2">
+              {comments.length === 0 ? (
+                <p className="text-gray-500 text-sm italic">Aucun commentaire</p>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment.id} className="bg-white p-2 rounded shadow-sm">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span className="font-medium">{comment.username}</span>
+                      <span>{new Date(comment.created_at).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm">{comment.comment}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="flex">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Ajouter un commentaire..."
+                className="flex-1 border border-gray-300 rounded-l px-3 py-2"
+                disabled={isLocked && !lockedByMe}
+              />
+              <button
+                onClick={addComment}
+                className="bg-blue-600 text-white px-3 py-2 rounded-r disabled:opacity-50"
+                disabled={(isLocked && !lockedByMe) || !newComment.trim()}
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

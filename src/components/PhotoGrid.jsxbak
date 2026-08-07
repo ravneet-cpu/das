@@ -1,0 +1,122 @@
+// src/components/PhotoGrid.jsx
+import React from 'react';
+
+export function PhotoGrid({ 
+  photos, 
+  onPhotoClick, 
+  selectedPhotos, 
+  onToggleSelect,
+  lockedPhotos = [],
+  onLockPhoto,
+  onUnlockPhoto
+}) {
+  // Convertir le tableau lockedPhotos en Map pour une recherche plus rapide
+  const lockedPhotoMap = lockedPhotos.reduce((map, lock) => {
+    map[lock.photo_id] = lock;
+    return map;
+  }, {});
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {photos.length === 0 ? (
+        <div className="col-span-full text-center py-10">
+          <p className="text-gray-500">Aucune photo à valider</p>
+        </div>
+      ) : (
+        photos.map((photo) => {
+          const isLocked = lockedPhotoMap[photo.id];
+          const isSelected = selectedPhotos.includes(photo.id);
+          
+          return (
+            <div 
+              key={photo.id} 
+              className={`relative bg-white rounded-lg shadow-md overflow-hidden 
+                ${isSelected ? 'ring-2 ring-blue-500' : ''} 
+                ${isLocked ? 'opacity-70' : 'hover:shadow-lg'}`}
+            >
+              <div className="relative">
+                <img 
+                  src={`/api/photos/${encodeURIComponent(photo.id)}?size=medium`} 
+                  alt={photo.originalName} 
+                  className="w-full h-48 object-cover"
+                  onClick={() => !isLocked && onPhotoClick(photo)}
+                />
+                
+                {/* Indicateur de verrouillage */}
+                {isLocked && (
+                  <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                    <div className="bg-white rounded-md p-2 text-sm">
+                      <div className="flex items-center space-x-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>Verrouillé par {isLocked.username}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Checkbox pour la sélection */}
+                <div className="absolute top-2 left-2">
+                  <input 
+                    type="checkbox" 
+                    checked={isSelected}
+                    onChange={() => onToggleSelect(photo.id)}
+                    className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                </div>
+                
+                {/* Bouton de verrouillage/déverrouillage */}
+                {!isLocked && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLockPhoto(photo.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow"
+                    title="Verrouiller cette photo"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
+                
+                {/* Bouton de déverrouillage (visible seulement si verrouillé par l'utilisateur actuel) */}
+                {isLocked && isLocked.username === 'currentUser' && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUnlockPhoto(photo.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow"
+                    title="Déverrouiller cette photo"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              
+              <div className="p-3">
+                <h3 className="text-sm font-medium truncate">{photo.originalName}</h3>
+                <div className="mt-1 flex justify-between text-xs text-gray-500">
+                  <span>{photo.size}</span>
+                  {photo.width && photo.height && (
+                    <span>{photo.width} x {photo.height}px</span>
+                  )}
+                </div>
+                {photo.paperFormat && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Format: {photo.paperFormat}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}

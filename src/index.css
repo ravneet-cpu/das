@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Custom CSS Variables */
+:root {
+  --color-primary: #000000;
+  --color-secondary: #374151;
+  --color-muted: #6B7280;
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F9FAFB;
+  --color-border: #E5E7EB;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+}
+
+/* Reset and base */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--color-primary);
+  background-color: var(--color-bg-primary);
+  margin: 0;
+  padding: 0;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--color-primary);
+}
+
+/* Links */
+a {
+  color: var(--color-info);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Buttons - Clean style without conflicts */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Inputs */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background-color: white;
+  color: var(--color-primary);
+  transition: border-color 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Navigation */
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Navbar horizontal menu scrollbar */
+.navbar-menu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.navbar-menu-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.navbar-menu-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.navbar-menu-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+
+.navbar-menu-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Ensure TailwindCSS colors work correctly */
+.text-blue-600 { color: #2563EB !important; }
+.text-blue-700 { color: #1D4ED8 !important; }
+.text-purple-700 { color: #7C3AED !important; }
+.text-purple-600 { color: #9333EA !important; }
+.text-green-600 { color: #16A34A !important; }
+.text-red-600 { color: #DC2626 !important; }
+.text-yellow-600 { color: #CA8A04 !important; }
+.text-gray-600 { color: #4B5563 !important; }
+.text-gray-500 { color: #6B7280 !important; }
+.text-gray-400 { color: #9CA3AF !important; }
+
+.bg-blue-100 { background-color: #DBEAFE !important; }
+.bg-blue-50 { background-color: #EFF6FF !important; }
+.bg-purple-100 { background-color: #F3E8FF !important; }
+.bg-purple-50 { background-color: #FAF5FF !important; }
+.bg-green-100 { background-color: #DCFCE7 !important; }
+.bg-red-100 { background-color: #FEE2E2 !important; }
+.bg-yellow-100 { background-color: #FEF3C7 !important; }
+.bg-gray-100 { background-color: #F3F4F6 !important; }
+.bg-gray-50 { background-color: #F9FAFB !important; }
+
+.border-blue-500 { border-color: #3B82F6 !important; }
+.border-purple-500 { border-color: #8B5CF6 !important; }
+.border-green-500 { border-color: #10B981 !important; }
+.border-red-500 { border-color: #EF4444 !important; }
+.border-yellow-500 { border-color: #F59E0B !important; }
+.border-gray-300 { border-color: #D1D5DB !important; }
+.border-gray-400 { border-color: #9CA3AF !important; }
+
+/* Ensure hover states work */
+.hover\:bg-blue-200:hover { background-color: #BFDBFE !important; }
+.hover\:bg-purple-200:hover { background-color: #E9D5FF !important; }
+.hover\:bg-gray-100:hover { background-color: #F3F4F6 !important; }
+.hover\:bg-blue-50:hover { background-color: #EFF6FF !important; }
+
+/* Fix overlay/modal issues */
+.fixed {
+  position: fixed !important;
+}
+
+.absolute {
+  position: absolute !important;
+}
+
+.relative {
+  position: relative !important;
+}
+
+.z-10 { z-index: 10 !important; }
+.z-40 { z-index: 40 !important; }
+.z-50 { z-index: 50 !important; }
+
+/* Ensure overlays are visible */
+.bg-opacity-50 { background-color: rgba(0, 0, 0, 0.5) !important; }
+.bg-opacity-75 { background-color: rgba(0, 0, 0, 0.75) !important; }
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+	
+/* Responsive */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}

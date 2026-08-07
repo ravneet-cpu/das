@@ -1,0 +1,358 @@
+// src/App.jsx
+import React, { useState, useEffect } from 'react';
+import { PhotoGrid } from './components/PhotoGrid';
+import { PhotoDetail } from './components/PhotoDetail';
+import { Navbar } from './components/Navbar';
+import { Stats } from './components/Stats';
+import { BatchActions } from './components/BatchActions';
+import { CollaborationStatus } from './components/CollaborationStatus';
+import DebugPage from './components/DebugPage';
+
+
+
+function App() {
+  const [view, setView] = useState('grid'); // 'grid', 'detail', 'stats'
+  const [photos, setPhotos] = useState([]);
+  const [currentPhoto, setCurrentPhoto] = useState(null);
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [collaborationStatus, setCollaborationStatus] = useState({
+    active_users: [],
+    locked_photos: []
+  });
+
+  // Chargement des photos
+  useEffect(() => {
+    if (view === 'grid') {
+      fetchPhotos();
+    }
+  }, [view]);
+
+  // Récupération du statut de collaboration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCollaborationStatus();
+    }, 30000); // Toutes les 30 secondes
+    
+    fetchCollaborationStatus();
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Charger les statistiques
+  useEffect(() => {
+    if (view === 'stats') {
+      fetchStats();
+    }
+  }, [view]);
+
+  const fetchPhotos = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/photos/list');
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des photos');
+      }
+      const data = await response.json();
+      setPhotos(data.photos || []);
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNextPhoto = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/photos/next');
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération de la prochaine photo');
+      }
+      const photo = await response.json();
+      setCurrentPhoto(photo);
+      setView('detail');
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/photos/stats');
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des statistiques');
+      }
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCollaborationStatus = async () => {
+    try {
+      const response = await fetch('/api/collaboration/status');
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération du statut de collaboration');
+      }
+      const data = await response.json();
+      setCollaborationStatus(data);
+    } catch (err) {
+      console.error('Erreur:', err);
+    }
+  };
+
+  const handlePhotoClick = (photo) => {
+    setCurrentPhoto(photo);
+    setView('detail');
+  };
+
+  const handleBackToGrid = () => {
+    setView('grid');
+    setCurrentPhoto(null);
+    fetchPhotos(); // Rafraîchir la liste
+  };
+
+  const handleValidatePhoto = async (photoId, decision, rejectReason, newFilename) => {
+    setLoading(true);
+    try {
+      const payload = {
+        photoId,
+        decision,
+        rejectReason: rejectReason || null
+      };
+      
+      if (newFilename && newFilename !== photoId) {
+        payload.newFilename = newFilename;
+      }
+      
+      const response = await fetch('/api/photos/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors de la validation de la photo: ${response.statusText}`);
+      }
+      
+      // Passer à la photo suivante
+      await fetchNextPhoto();
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRenamePhoto = async (photoId, newFilename) => {
+    if (!newFilename || newFilename === photoId) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/photos/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId, newFilename })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du renommage de la photo: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Mettre à jour l'interface utilisateur
+      if (currentPhoto && currentPhoto.id === photoId) {
+        setCurrentPhoto({ ...currentPhoto, id: result.id, originalName: result.originalName });
+      }
+      
+      // Rafraîchir la liste si nous sommes en vue grille
+      if (view === 'grid') {
+        fetchPhotos();
+      }
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBatchProcess = async (photoIds, decision, rejectReason) => {
+    if (!photoIds.length) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/photos/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          photoIds,
+          decision,
+          rejectReason: rejectReason || null
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du traitement par lot: ${response.statusText}`);
+      }
+      
+      // Réinitialiser la sélection
+      setSelectedPhotos([]);
+      
+      // Rafraîchir la liste
+      await fetchPhotos();
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleSelect = (photoId) => {
+    setSelectedPhotos(prevSelected => {
+      if (prevSelected.includes(photoId)) {
+        return prevSelected.filter(id => id !== photoId);
+      } else {
+        return [...prevSelected, photoId];
+      }
+    });
+  };
+
+  const handleLockPhoto = async (photoId) => {
+    try {
+      const response = await fetch('/api/collaboration/lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId, duration: 300 }) // Verrouillage pendant 5 minutes
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du verrouillage: ${response.statusText}`);
+      }
+      
+      // Mettre à jour le statut de collaboration
+      fetchCollaborationStatus();
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    }
+  };
+
+  const handleUnlockPhoto = async (photoId) => {
+    try {
+      const response = await fetch('/api/collaboration/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur lors du déverrouillage: ${response.statusText}`);
+      }
+      
+      // Mettre à jour le statut de collaboration
+      fetchCollaborationStatus();
+      
+    } catch (err) {
+      setError(err.message);
+      console.error('Erreur:', err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Navbar 
+        view={view} 
+        setView={setView} 
+        fetchNextPhoto={fetchNextPhoto}
+        fetchStats={fetchStats}
+      />
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-4">
+          <span className="block sm:inline">{error}</span>
+          <span className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setError(null)}>
+            <svg className="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>Fermer</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" />
+            </svg>
+          </span>
+        </div>
+      )}
+      
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white p-5 rounded-lg shadow-lg">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-2 text-center">Chargement...</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="container mx-auto px-4 py-6">
+        {view === 'grid' && (
+          <>
+            <div className="mb-4">
+              <CollaborationStatus status={collaborationStatus} />
+            </div>
+            
+            {selectedPhotos.length > 0 && (
+              <BatchActions 
+                selectedCount={selectedPhotos.length} 
+                onProcess={handleBatchProcess} 
+                selectedPhotos={selectedPhotos}
+              />
+            )}
+            
+            <PhotoGrid 
+              photos={photos} 
+              onPhotoClick={handlePhotoClick} 
+              selectedPhotos={selectedPhotos}
+              onToggleSelect={handleToggleSelect}
+              lockedPhotos={collaborationStatus.locked_photos}
+              onLockPhoto={handleLockPhoto}
+              onUnlockPhoto={handleUnlockPhoto}
+            />
+          </>
+        )}
+        
+        {view === 'detail' && currentPhoto && (
+          <PhotoDetail 
+            photo={currentPhoto} 
+            onBack={handleBackToGrid} 
+            onValidate={handleValidatePhoto} 
+            onRename={handleRenamePhoto}
+            onLock={handleLockPhoto}
+            onUnlock={handleUnlockPhoto}
+            lockedPhotos={collaborationStatus.locked_photos}
+          />
+        )}
+        
+        {view === 'stats' && stats && (
+          <Stats stats={stats} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
