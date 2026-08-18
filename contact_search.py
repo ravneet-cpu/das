@@ -16,10 +16,10 @@ log = logging.getLogger(__name__)
 contact_search_bp = Blueprint('contact_search', __name__)
 
 # --- Odoo config ---
-DB   = "odoo_15"
+DB   = "odoo_restore"
 UID  = 34
-PASS = "Surafell"
-URL  = "https://operacrm.com"
+PASS = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
+URL  = "http://127.0.0.1:8070"
 
 PARTNER_FIELDS = [
     'id', 'name', 'email', 'phone', 'mobile',

@@ -179,6 +179,9 @@ def init_db():
             validated_by INTEGER,
             status TEXT DEFAULT 'pending',
             classification TEXT,
+            artwork_id TEXT,
+            display_name TEXT,
+            scheduled_date DATETIME,
             reject_reason TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             validated_at TIMESTAMP,
@@ -187,11 +190,21 @@ def init_db():
         )
     ''')
     
-    # Migration: add streaming_url column for video HLS streaming
-    try:
-        cursor.execute("ALTER TABLE photo_validations ADD COLUMN streaming_url TEXT")
-    except Exception:
-        pass  # Column already exists
+    # Migrate databases created before these columns were introduced.  SQLite's
+    # CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+    existing_columns = {
+        row[1] for row in cursor.execute("PRAGMA table_info(photo_validations)")
+    }
+    for column, column_type in {
+        'streaming_url': 'TEXT',
+        'artwork_id': 'TEXT',
+        'display_name': 'TEXT',
+        'scheduled_date': 'DATETIME',
+    }.items():
+        if column not in existing_columns:
+            cursor.execute(
+                f"ALTER TABLE photo_validations ADD COLUMN {column} {column_type}"
+            )
 
     # Create photo_marks table for user-specific photo marking
     cursor.execute('''
@@ -1072,7 +1085,7 @@ def admin_resync_crm():
         "VIEW34": "view_34_hr",
     }
     FIELDS = sorted(set(CLS2FIELD.values()))
-    ODOO, DBN, LG, PW = "https://operacrm.com", "odoo_15", "surafelwubshet7@gmail.com", "Surafell"
+    ODOO, DBN, LG, PW = "http://127.0.0.1:8070", "odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
     IMG = "https://images.operagallery.com/FM/"
 
     def _num(s):
@@ -1175,13 +1188,13 @@ def get_artwork_filled_slots(artwork_id):
         try:
             import requests as _requests
             _s = _requests.Session()
-            _s.post('https://operacrm.com/web/session/authenticate',
+            _s.post('http://127.0.0.1:8070/web/session/authenticate',
                     json={'jsonrpc': '2.0', 'params': {
-                        'db': 'odoo_15',
-                        'login': 'surafelwubshet7@gmail.com',
-                        'password': 'Surafell'}},
+                        'db': 'odoo_restore',
+                        'login': 'frederic@faucouneau.fr',
+                        'password': 'ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov'}},
                     timeout=10)
-            _r = _s.post('https://operacrm.com/web/dataset/call_kw',
+            _r = _s.post('http://127.0.0.1:8070/web/dataset/call_kw',
                          json={'jsonrpc': '2.0', 'method': 'call', 'params': {
                              'model': 'product.template', 'method': 'search_read',
                              'args': [[['IdName', '=', artwork_id]]],
@@ -1387,16 +1400,19 @@ def validate_photo():
         # Display name required for PDF or VIDEO
         if (is_pdf or is_video) and not display_name:
             return jsonify({'error': 'Display name is required for PDF or Video'}), 400
+            
+        photo_path = os.path.join(PHOTOS_BASE_DIR, current_filename)
 
-        photo_path = os.path.join(PHOTOS_BASE_DIR, directory, current_filename)
+        # print("photo_path",photo_path)
+        # print("PHOTOS_BASE_DIR", PHOTOS_BASE_DIR,directory, curren)
         if not os.path.exists(photo_path):
             if new_filename and new_filename != filename:
                 photo_path = os.path.join(PHOTOS_BASE_DIR, directory, filename)
                 if not os.path.exists(photo_path):
-                    return jsonify({'error': 'Photo not found'}), 404
+                    return jsonify({'error': 'Photo1 not found'}), 404
                 current_filename = filename
             else:
-                return jsonify({'error': 'Photo not found'}), 404
+                return jsonify({'error': 'Photo2 not found'}), 404
 
         # Resolve the original/super-HD URL only once photo_path points at a file
         # that actually exists on disk — resolving it before the rename fallback
@@ -1433,6 +1449,8 @@ def validate_photo():
             try:
                 print(f"[SCHEDULE] Scheduling photo {photo_id} for {scheduled_date} with classification {classification}")
 
+                print("GGGGG", decision, photo_id, scheduled_date, classification, artwork_id, new_filename, display_name)
+                # exit(0)
                 # Parse date
                 if isinstance(scheduled_date, str):
                     schedule_datetime = datetime.fromisoformat(scheduled_date.replace('Z', '+00:00'))
@@ -1442,6 +1460,7 @@ def validate_photo():
                 if not classification:
                     conn.close()
                     return jsonify({'error': 'Classification requise pour la programmation'}), 400
+
 
                 os.makedirs(SCHEDULED_DIR, exist_ok=True)
 
@@ -1455,7 +1474,17 @@ def validate_photo():
                 scheduled_path = os.path.join(SCHEDULED_DIR, base_filename)
                 destination_path = os.path.join(FM_DIR, base_filename)
 
+                print(f" XXXXXXXXXX [DEBUG] Scheduled path: {scheduled_path}, Destination path: {destination_path}")
+
+                print("HHH", photo_path, "what", os.path.exists(photo_path))
+                print("IIIIII", scheduled_path, "what", os.path.exists(scheduled_path))
+
                 if os.path.exists(photo_path):
+                     # Ensure the destination folder exists before copying
+                    scheduled_dir = os.path.dirname(scheduled_path)
+                    if scheduled_dir and not os.path.exists(scheduled_dir):
+                        os.makedirs(scheduled_dir, exist_ok=True)
+                        print(f"[DEBUG] Created missing folder: {scheduled_dir}")
                     # shutil.move(photo_path, scheduled_path)
                     shutil.copy2(photo_path, scheduled_path)
                     os.remove(photo_path)
@@ -1507,6 +1536,8 @@ def validate_photo():
         # ✅ VALIDATION BRANCH
         # ===============================================================
         if decision == 'valider':
+            print("CCCCCCCCCCCCC", decision)
+            # exit(0)
             print(f"[DEBUG VALIDATION] Starting validation with classification: {classification}")
             streaming_url = None  # Will be set for videos sent to streaming server
             if not classification:
@@ -1608,6 +1639,7 @@ def validate_photo():
             # artwork_id = extract_artwork_id_from_filename(final_filename)
             artwork_id = extracted_id_from_original
 
+            print("KKKK0 came here", target_field)
             # ---------------------------------------------------------
             # FINAL & ONLY DUPLICATE CHECK (FileMaker + Odoo + local)
             # - This runs BEFORE moving the new file into FM_DIR.
@@ -1628,25 +1660,27 @@ def validate_photo():
             new_metrics = {} if (is_pdf or is_video) else get_image_metrics(real_new_path)
 
             # ---- FileMaker check ----
-            try:
-                fm_existing = filemaker_service.get_field_value(artwork_id, target_field)
-            except:
-                fm_existing = None
+            # try:
+            #     fm_existing = filemaker_service.get_field_value(artwork_id, target_field)
+            # except:
+            #     fm_existing = None
 
-            if not fm_existing:
-                direct_match = final_filename  # Example: ABC-123_MAIN.jpg
-                direct_path = os.path.join(FM_DIR, direct_match)
+            # if not fm_existing:
+            #     direct_match = final_filename  # Example: ABC-123_MAIN.jpg
+            #     direct_path = os.path.join(FM_DIR, direct_match)
 
-                if os.path.exists(direct_path):
-                    fm_existing = f"https://images.operagallery.com/FM/{direct_match}"
-                    existing_path = direct_path
-                    existing_metrics = get_image_metrics(direct_path)
+            #     if os.path.exists(direct_path):
+            #         fm_existing = f"https://images.operagallery.com/FM/{direct_match}"
+            #         existing_path = direct_path
+            #         existing_metrics = get_image_metrics(direct_path)
 
             # ---- Odoo check (skip for video/PDF - VIDEO_ not in odoo_field_map, saves an auth call) ----
+
             if not (is_pdf or is_video):
+                print("came inside is_pdf or is_video check")
                 try:
                     odoo = OperaCRMClient()
-                    if odoo.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                    if odoo.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                         recs = odoo.search_by_idname(artwork_id) or []
                         if recs:
                             odoo_field_map = {
@@ -1738,7 +1772,7 @@ def validate_photo():
                         check_client = OperaCRMClient()
                         odoo_found = False
 
-                        if check_client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                        if check_client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                             odoo_records = check_client.search_by_idname(artwork_id)
                             odoo_found = bool(odoo_records)
                             
@@ -2003,7 +2037,7 @@ def validate_photo():
 
                     # Authenticate
                     print(f"[ODOO] Authenticating for {artwork_id} / {classification}...")
-                    if opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                    if opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                         print(f"[ODOO] Auth OK")
                         # 1) SEARCH BY IDNAME
                         records = opera.search_by_idname(artwork_id)
@@ -2173,6 +2207,8 @@ def validate_photo():
             else:
                 os.makedirs(FM_DIR, exist_ok=True)
                 destination_path = os.path.join(FM_DIR, final_filename)
+                os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+
                 shutil.move(photo_path, destination_path)
                 message = f"Photo validée sans ID d'œuvre"
 
@@ -2202,6 +2238,9 @@ def validate_photo():
             else:
                 final_filename = filename
 
+            print("XXXX", photo_path, destination_path)
+            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+            
             shutil.move(photo_path, destination_path)
             cursor.execute('''
                 INSERT INTO photo_validations 
@@ -2489,7 +2528,7 @@ def resolve_duplicate():
         try:
             from search_operacrm_corrected import OperaCRMClient
             opera = OperaCRMClient()
-            if opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 records = opera.search_by_idname(artwork_id)
                 if records:   # artwork=None means not in FM, but might still be in Odoo
                     r_id = records[0]["id"]
@@ -3888,33 +3927,33 @@ def validate_upload_with_artwork_search():
             print(f"Extracted artwork ID: {artwork_id} from filename: {file.filename}")
             
             # 1. Try FileMaker first in CRMRecordArtworks layout, IdName field
-            try:
-                from filemaker_service import FileMakerService
-                fm_service = FileMakerService()
+            # try:
+            #     from filemaker_service import FileMakerService
+            #     fm_service = FileMakerService()
                 
-                print(f"[VALIDATE-UPLOAD] Searching FileMaker for IdName = '{artwork_id}'")
-                fm_result = fm_service.find_artwork_by_id(artwork_id)
+            #     print(f"[VALIDATE-UPLOAD] Searching FileMaker for IdName = '{artwork_id}'")
+            #     fm_result = fm_service.find_artwork_by_id(artwork_id)
                 
-                if fm_result:
-                    print(f"[VALIDATE-UPLOAD] SUCCESS! Found {artwork_id} in FileMaker!")
-                    print(f"[VALIDATE-UPLOAD] FileMaker result: {fm_result}")
-                    fm_data = fm_result['fieldData']
-                    artwork_found = True
-                    enrichment_status = 'filemaker_data'
-                    artwork_metadata = {
-                        'IdName': fm_data.get('IdName', artwork_id),
-                        'title': fm_data.get('Name', 'Titre inconnu'),
-                        'artist': fm_data.get('Artists::TotalNameArtist', 'Artiste inconnu'),
-                        'year': fm_data.get('Artworkyear'),
-                        'category': fm_data.get('Category'),
-                        'medium': fm_data.get('Medium'),
-                        'source': 'FileMaker'
-                    }
-                else:
-                    print(f"[VALIDATE-UPLOAD] NOT FOUND: {artwork_id} not found in FileMaker CRMRecordArtworks.IdName")
+            #     if fm_result:
+            #         print(f"[VALIDATE-UPLOAD] SUCCESS! Found {artwork_id} in FileMaker!")
+            #         print(f"[VALIDATE-UPLOAD] FileMaker result: {fm_result}")
+            #         fm_data = fm_result['fieldData']
+            #         artwork_found = True
+            #         enrichment_status = 'filemaker_data'
+            #         artwork_metadata = {
+            #             'IdName': fm_data.get('IdName', artwork_id),
+            #             'title': fm_data.get('Name', 'Titre inconnu'),
+            #             'artist': fm_data.get('Artists::TotalNameArtist', 'Artiste inconnu'),
+            #             'year': fm_data.get('Artworkyear'),
+            #             'category': fm_data.get('Category'),
+            #             'medium': fm_data.get('Medium'),
+            #             'source': 'FileMaker'
+            #         }
+            #     else:
+            #         print(f"[VALIDATE-UPLOAD] NOT FOUND: {artwork_id} not found in FileMaker CRMRecordArtworks.IdName")
                     
-            except Exception as e:
-                print(f"[VALIDATE-UPLOAD] FileMaker search ERROR: {e}")
+            # except Exception as e:
+            #     print(f"[VALIDATE-UPLOAD] FileMaker search ERROR: {e}")
             
             # 2. If not found in FileMaker, try OperaCRM
             if not artwork_found:
@@ -4290,7 +4329,7 @@ def rename_photo():
                     from search_operacrm_corrected import OperaCRMClient
 
                     opera = OperaCRMClient()
-                    if opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                    if opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                         records = opera.search_by_idname(artwork_id)
                         if records:
                             r_id = records[0]["id"]
@@ -4380,7 +4419,7 @@ def search_artwork_in_odoo_by_id(artwork_id):
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return None
         
@@ -4760,7 +4799,7 @@ def search_artworks_in_odoo(query='', search_type='all', filters=None, page=1, l
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return get_mock_artworks_data(query, search_type, filters, page, limit)
         
@@ -5104,6 +5143,8 @@ def search_artworks_legacy():
             limit = int(request.args.get('limit', 20))
             filters = {}
         
+        print("FFFFFFFFFFFFFFFFFFFFFF", query)
+
         # Use Odoo API to search artworks
         artworks_from_odoo = search_artworks_in_odoo(
             query=query,
@@ -5112,6 +5153,8 @@ def search_artworks_legacy():
             page=page,
             limit=limit
         )
+
+        print("DDDDDDDDDDDD artworks_from_odoo", artworks_from_odoo)
         
         return jsonify(artworks_from_odoo)
         
@@ -6397,8 +6440,8 @@ def update_filemaker_image_fields():
                 import xmlrpc.client
 
                 # ⚙️ Static Odoo configuration
-                odoo_url = "https://operacrm.com"
-                db = "odoo_15"
+                odoo_url = "http://127.0.0.1:8070"
+                db = "odoo_restore"
                 username = "frederic@faucouneau.fr"
                 password = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
 

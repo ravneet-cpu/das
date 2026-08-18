@@ -143,7 +143,7 @@ def ensure_authenticated():
     for attempt in range(max_retries):
         if not client.session_id:
             print(f"🔐 Authenticating with OperaCRM (attempt {attempt + 1}/{max_retries})...")
-            success = client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell")
+            success = client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov")
             if success:
                 print("✅ OperaCRM authentication successful")
                 return True

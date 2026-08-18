@@ -7,7 +7,7 @@ print("🗑️ Starting FULL Perspective Cleanup...")
 
 # ---------- Odoo Login ----------
 opera = OperaCRMClient()
-if not opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+if not opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
     print("❌ ODOO LOGIN FAILED")
     exit()
 

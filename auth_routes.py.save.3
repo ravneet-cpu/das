@@ -1193,7 +1193,7 @@ def validate_photo():
             # ---- Odoo check ----
             try:
                 odoo = OperaCRMClient()
-                if odoo.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                if odoo.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                     recs = odoo.search_by_idname(artwork_id) or []
                     if recs:
                         odoo_field_map = {
@@ -1271,7 +1271,7 @@ def validate_photo():
                         check_client = OperaCRMClient()
                         odoo_found = False
 
-                        if check_client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                        if check_client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                             odoo_records = check_client.search_by_idname(artwork_id)
                             odoo_found = bool(odoo_records)
                             
@@ -1496,7 +1496,7 @@ def validate_photo():
                     opera = OperaCRMClient()
 
                     # Authenticate
-                    if opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                    if opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                      
                         # 1) SEARCH BY IDNAME
                         records = opera.search_by_idname(artwork_id)
@@ -1801,7 +1801,7 @@ def list_photos():
                                             try:
                                                 from search_operacrm_corrected import OperaCRMClient
                                                 odoo = OperaCRMClient()
-                                                if odoo.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                                                if odoo.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                                                     recs = odoo.search_by_idname(artwork_id)
                                                     if recs:
                                                         odoo_exists = True
@@ -3287,7 +3287,7 @@ def rename_photo():
                     from search_operacrm_corrected import OperaCRMClient
 
                     opera = OperaCRMClient()
-                    if opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+                    if opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                         records = opera.search_by_idname(artwork_id)
                         if records:
                             r_id = records[0]["id"]
@@ -3366,7 +3366,7 @@ def search_artwork_in_odoo_by_id(artwork_id):
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return None
         
@@ -3746,7 +3746,7 @@ def search_artworks_in_odoo(query='', search_type='all', filters=None, page=1, l
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return get_mock_artworks_data(query, search_type, filters, page, limit)
         
@@ -5380,8 +5380,8 @@ def update_filemaker_image_fields():
                 import xmlrpc.client
 
                 # ⚙️ Static Odoo configuration
-                odoo_url = "https://operacrm.com"
-                db = "odoo_15"
+                odoo_url = "http://127.0.0.1:8070"
+                db = "odoo_restore"
                 username = "frederic@faucouneau.fr"
                 password = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
 

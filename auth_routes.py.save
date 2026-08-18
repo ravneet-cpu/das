@@ -1011,9 +1011,9 @@ def validate_photo():
                         try:
                             from search_operacrm_corrected import OperaCRMClient
                             opera_service = OperaCRMClient()
-                            db = "odoo_15"
-                            login = "surafelwubshet7@gmail.com"
-                            password = "Surafell"
+                            db = "odoo_restore"
+                            login = "frederic@faucouneau.fr"
+                            password = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
 
                             if opera_service.authenticate(db, login, password):
                                 print(f"[DEBUG] OperaCRM authenticated, searching for artwork {artwork_id}")
@@ -1072,9 +1072,9 @@ def validate_photo():
                         fm_service.create_artwork(artwork_id, target_field, image_url)
                     from search_operacrm_corrected import OperaCRMClient
                     opera_service = OperaCRMClient()
-                    db = "odoo_15"
-                    login = "surafelwubshet7@gmail.com"
-                    password = "Surafell"
+                    db = "odoo_restore"
+                    login = "frederic@faucouneau.fr"
+                    password = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
                     if opera_service.authenticate(db, login, password):
                         print("authnenticated")
                         opera_service.create_artwork_record(artwork_id, final_filename)
@@ -2698,7 +2698,7 @@ def search_artwork_in_odoo_by_id(artwork_id):
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return None
         
@@ -3078,7 +3078,7 @@ def search_artworks_in_odoo(query='', search_type='all', filters=None, page=1, l
         
         # Ensure client is authenticated
         if not client.session_id:
-            if not client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+            if not client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
                 print("❌ Échec de l'authentification OperaCRM")
                 return get_mock_artworks_data(query, search_type, filters, page, limit)
         

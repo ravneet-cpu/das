@@ -14,9 +14,9 @@ import time
 import requests
 
 ODOO_URL = "https://2.operacrm.com"
-ODOO_DB = "odoo_15"
-ODOO_USER = "surafelwubshet7@gmail.com"
-ODOO_PASS = "Surafell"
+ODOO_DB = "odoo_restore"
+ODOO_USER = "frederic@faucouneau.fr"
+ODOO_PASS = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
 
 BATCH_SIZE = 200
 SLEEP = 0.3   # safe for Odoo

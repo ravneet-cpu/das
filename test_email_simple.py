@@ -10,7 +10,7 @@ print("🧪 Testing single rejection email...")
 
 try:
     success = email_service.send_rejection_email(
-        user_email='surafell@operacrm.com',  # Email de test 
+        user_email='ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov@operacrm.com',  # Email de test 
         username='TestUser',
         photo_id='TEST-123-MAIN.jpg',
         reject_reason='Poor photo quality',
@@ -19,7 +19,7 @@ try:
     
     if success:
         print("✅ Test email sent successfully!")
-        print("📧 Check surafell@operacrm.com for the email")
+        print("📧 Check ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov@operacrm.com for the email")
     else:
         print("❌ Failed to send test email")
         

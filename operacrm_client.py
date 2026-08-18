@@ -10,15 +10,15 @@ import os
 from typing import Dict, List, Optional, Any
 
 class OperaCRMClient:
-    def __init__(self, base_url: str = "https://operacrm.com"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8070"):
         self.base_url = base_url
         self.session = requests.Session()
         self.session_id = None
         
         # Configuration depuis les variables d'environnement ou valeurs par défaut
-        self.db = os.getenv('OPERACRM_DB', 'odoo_15')
-        self.login = os.getenv('OPERACRM_LOGIN', 'surafelwubshet7@gmail.com')
-        self.password = os.getenv('OPERACRM_PASSWORD', 'Surafell')
+        self.db = os.getenv('OPERACRM_DB', 'odoo_restore')
+        self.login = os.getenv('OPERACRM_LOGIN', 'frederic@faucouneau.fr')
+        self.password = os.getenv('OPERACRM_PASSWORD', 'ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov')
     
     # Champs complets pour les œuvres d'art
     ARTWORK_FIELDS = [

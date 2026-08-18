@@ -79,7 +79,7 @@ def update_odoo(artwork_id, classification, hls_url, mp4_url):
         sys.path.insert(0, os.path.dirname(__file__))
         from search_operacrm_corrected import OperaCRMClient
         opera = OperaCRMClient()
-        if not opera.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell"):
+        if not opera.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"):
             print("  ⚠️  Odoo auth failed")
             return
 

@@ -10,7 +10,7 @@ import sys
 import argparse
 
 class OperaCRMClient:
-    def __init__(self, base_url="https://operacrm.com"):
+    def __init__(self, base_url="http://127.0.0.1:8070"):
         self.base_url = base_url
         self.session = requests.Session()
         self.session_id = None
@@ -438,9 +438,9 @@ def main():
     args = parser.parse_args()
     
     # Paramètres de connexion
-    db = "odoo_15"
-    login = "surafelwubshet7@gmail.com"
-    password = "Surafell"
+    db = "odoo_restore"
+    login = "frederic@faucouneau.fr"
+    password = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
     
     print("=== Connexion à OperaCRM (Version Corrigée) ===")
     

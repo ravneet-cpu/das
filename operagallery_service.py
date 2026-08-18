@@ -52,7 +52,7 @@ def ensure_authenticated():
     for attempt in range(max_retries):
         if not client.session_id:
             print(f"🔐 Authenticating with OperaCRM (attempt {attempt + 1}/{max_retries})...")
-            success = client.authenticate("odoo_15", "surafelwubshet7@gmail.com", "Surafell")
+            success = client.authenticate("odoo_restore", "frederic@faucouneau.fr", "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov")
             if success:
                 print("✅ OperaCRM authentication successful")
                 _auth_time = time.time()
@@ -463,10 +463,10 @@ def _db_fallback_artworks(query=None, limit=200):
                 return _cached[1]
         try:
             import xmlrpc.client as _xc
-            _odoo_url = 'https://operacrm.com'
-            _odoo_db = 'odoo_15'
-            _odoo_user = 'surafelwubshet7@gmail.com'
-            _odoo_pass = 'Surafell'
+            _odoo_url = 'http://127.0.0.1:8070'
+            _odoo_db = 'odoo_restore'
+            _odoo_user = 'frederic@faucouneau.fr'
+            _odoo_pass = 'ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov'
             # Reuse auth for 25 min
             _uid = _db_fallback_artworks._odoo_uid
             if not _uid or _now - _db_fallback_artworks._odoo_uid_ts > 1500:

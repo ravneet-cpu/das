@@ -22,9 +22,9 @@ BATCH_SIZE = 100
 START_OFFSET = 0   # ⬅️ yahin se resume karo
 SLEEP_BETWEEN_BATCH = 1
 
-ODOO_DB = "odoo_15"
-ODOO_USER = "surafelwubshet7@gmail.com"
-ODOO_PASS = "Surafell"
+ODOO_DB = "odoo_restore"
+ODOO_USER = "frederic@faucouneau.fr"
+ODOO_PASS = "ONc8VxiDFnSgCuwSkArqur3Sj1WFZhov"
 
 # ==========================================
 
